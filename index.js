@@ -26,38 +26,6 @@ var bluetoothHciSocket = new BluetoothHciSocket();
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-/* This is using Noble to start the Bluetooth process to start to look for devices */
-////////////////////////////////////////////////////////////////////////////////
-
-noble.on('stateChange', function(state) {
-  if (state === 'poweredOn') {
-    noble.startScanning()
-  } else {
-    noble.stopScanning();
-  }
-});
-
-noble.on('discover', function(peripheral) {
-  console.log("\n Found a Node - Address:", peripheral.address, "\t ID:", peripheral.id, "\n");
-  bleDis = true;
-});
-
-noble.on('scanStart', function() {
-  console.log('on -> scanStart');
-  /*
-  setTimeout(function() {
-  noble.stopScanning();
-}, 10 * 1000);
-*/
-});
-
-noble.on('scanStop', function() {
-  console.log('on -> scanStop');
-});
-
-////////////////////////////////////////////////////////////////////////////////
-
 //Connect to the Cloud
 
 /*
@@ -117,16 +85,17 @@ bluetoothHciSocket.on('error', function(error) {
   }
 });
 
+
 ////////////////////////////////////////////////////////////////////////////////
 /* Functions */
 ////////////////////////////////////////////////////////////////////////////////
 function bluzToCloud (data) {
-  console.log('Data from Bluz: ' + data.toString('hex') + "\t Data Length: " + data.length());
+  console.log('Data from Bluz: ' + data.toString('hex') + "\t Data Length: " + data.length);
   //client.write(data);
 }
 
 function cloudToBluz (data) {
-  console.log('Data from Cloud: ' + data.toString('Hex') + "\t Data Length: " + data.length());
+  console.log('Data from Cloud: ' + data.toString('Hex') + "\t Data Length: " + data.length);
   //bluetoothHciSocket.write(data);
 }
 
@@ -138,7 +107,39 @@ function cloudReconnect () {
 }
 
 
-/*
+////////////////////////////////////////////////////////////////////////////////
+/* This is using Noble to start the Bluetooth process to start to look for devices */
+////////////////////////////////////////////////////////////////////////////////
+
+noble.on('stateChange', function(state) {
+  if (state === 'poweredOn') {
+    noble.startScanning();
+  } else {
+    noble.stopScanning();
+  }
+});
+
+noble.on('discover', function(peripheral) {
+  console.log("\n Found a Node - Address:", peripheral.address, "\t ID:", peripheral.id, "\n");
+  bleDis = true;
+});
+
+noble.on('scanStart', function() {
+  console.log('on -> scanStart');
+  /*
+  setTimeout(function() {
+  noble.stopScanning();
+}, 10 * 1000);
+*/
+});
+
+noble.on('scanStop', function() {
+  console.log('on -> scanStop');
+});
+
+////////////////////////////////////////////////////////////////////////////////
+
+
 var HCI_COMMAND_PKT = 0x01;
 var HCI_ACLDATA_PKT = 0x02;
 var HCI_EVENT_PKT = 0x04;
@@ -162,6 +163,7 @@ var HCI_SUCCESS = 0;
 function setFilter() {
 var filter = new Buffer(255);
 
+
 var typeMask = (1 << HCI_EVENT_PKT);
 var eventMask1 = (1 << EVT_CMD_COMPLETE) | (1 << EVT_CMD_STATUS);
 var eventMask2 = (1 << (EVT_LE_META_EVENT - 32));
@@ -175,7 +177,7 @@ filter.writeUInt16LE(opcode, 12);
 
 bluetoothHciSocket.setFilter(filter);
 }
-*/
+
 bluetoothHciSocket.bindRaw();
-//setFilter();
+setFilter();
 bluetoothHciSocket.start();
