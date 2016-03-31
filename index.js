@@ -2,15 +2,6 @@ var net = require('net');
 var noble = require('noble');
 var BluetoothHciSocket = require('bluetooth-hci-socket');
 
-/*
-var client = new net.Socket({
-fd: null,
-allowHalfOpen: true,
-readable: true,
-writable: true
-});
-*/
-
 var port = 5683;
 var host = 'device.spark.io';
 
@@ -24,26 +15,12 @@ var client = net.createConnection({port: port, host: host}, () => {
 
 var bluetoothHciSocket = new BluetoothHciSocket();
 
-
-
-//Connect to the Cloud
-
-/*
-client.connect(5683, 'device.spark.io', function() {
-console.log('Connected to Particle Cloud');
-});
-*/
-
-
 //Data from cloud is fed to the Bluz
 client.on('data', function(data) {
   if (bleDis == true){
     console.log("Cloud => Bluz");
     cloudToBluz(data);
   }
-  //bluetoothHciSocket.write(data);
-
-  //client.end();
 });
 
 //Data from the Bluz is fed to the Cloud
@@ -56,10 +33,6 @@ bluetoothHciSocket.on('data', function(data) {
     cloudReconnect();
     bluzToCloud(data);
   }
-  //client.connect(5683, 'device.spark.io', function() {
-  //client.write(data);
-  //});
-  //client.end();
 });
 
 
