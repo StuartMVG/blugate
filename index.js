@@ -4,52 +4,105 @@ var BluetoothHciSocket = require('bluetooth-hci-socket');
 
 /*
 var client = new net.Socket({
-  fd: null,
-  allowHalfOpen: true,
-  readable: true,
-  writable: true
+fd: null,
+allowHalfOpen: true,
+readable: true,
+writable: true
 });
 */
 
-var client = net.connect({port: 5683, host: 'device.spark.io'}, () => {
-  // 'connect' listener
+var port = 5683;
+var host = 'device.spark.io';
+
+var bleDis = false;
+var cloudConnect = false;
+
+var client = net.createConnection({port: port, host: host}, () => {
   console.log('Connected to Particle Cloud!');
+  cloudConnect = true;
 });
 
 var bluetoothHciSocket = new BluetoothHciSocket();
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/* This is using Noble to start the Bluetooth process to start to look for devices */
+////////////////////////////////////////////////////////////////////////////////
+
+noble.on('stateChange', function(state) {
+  if (state === 'poweredOn') {
+    noble.startScanning()
+  } else {
+    noble.stopScanning();
+  }
+});
+
+noble.on('discover', function(peripheral) {
+  console.log("\n Found a Node - Address:", peripheral.address, "\t ID:", peripheral.id, "\n");
+  bleDis = true;
+});
+
+noble.on('scanStart', function() {
+  console.log('on -> scanStart');
+  /*
+  setTimeout(function() {
+  noble.stopScanning();
+}, 10 * 1000);
+*/
+});
+
+noble.on('scanStop', function() {
+  console.log('on -> scanStop');
+});
+
+////////////////////////////////////////////////////////////////////////////////
 
 //Connect to the Cloud
 
 /*
 client.connect(5683, 'device.spark.io', function() {
-	console.log('Connected to Particle Cloud');
+console.log('Connected to Particle Cloud');
 });
 */
 
+
 //Data from cloud is fed to the Bluz
 client.on('data', function(data) {
-  console.log("Cloud => Bluz");
-	console.log('Data from Cloud: ' + data.toString('Hex'));
-  bluetoothHciSocket.write(data);
+  if (bleDis == true){
+    console.log("Cloud => Bluz");
+    cloudToBluz(data);
+  }
+  //bluetoothHciSocket.write(data);
+
   //client.end();
 });
 
 //Data from the Bluz is fed to the Cloud
 bluetoothHciSocket.on('data', function(data) {
-  console.log('Bluz => Cloud');
-  console.log('Data from Bluz: ' + data.toString('hex'));
+  if (bleDis == true && cloudConnect == true){
+    console.log('Bluz => Cloud');
+    bluzToCloud(data);
+  } else if (bleDis == true && cloudConnect == false){
+    console.log('Bluz => Cloud');
+    cloudReconnect();
+    bluzToCloud(data);
+  }
   //client.connect(5683, 'device.spark.io', function() {
-    //client.write(data);
+  //client.write(data);
   //});
   //client.end();
 });
 
+
 client.on('end', function() {
-	console.log('Cloud connection sleeping');
+  console.log('Cloud connection sleeping');
 });
 
 client.on('close', function() {
-	console.log('Cloud connection ended');
+  console.log('Cloud connection ended');
+  cloudConnect = false;
+  cloudReconnect();
 });
 
 bluetoothHciSocket.on('error', function(error) {
@@ -67,47 +120,25 @@ bluetoothHciSocket.on('error', function(error) {
 ////////////////////////////////////////////////////////////////////////////////
 /* Functions */
 ////////////////////////////////////////////////////////////////////////////////
-var bluzToCloud (data) {
-	
+function bluzToCloud (data) {
+  console.log('Data from Bluz: ' + data.toString('hex') + "\t Data Length: " + data.length());
+  //client.write(data);
 }
 
-var cloudToBluz (data) {
-	
+function cloudToBluz (data) {
+  console.log('Data from Cloud: ' + data.toString('Hex') + "\t Data Length: " + data.length());
+  //bluetoothHciSocket.write(data);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/* This is using Noble to start the Bluetooth process to start to look for devices */
-////////////////////////////////////////////////////////////////////////////////
-
-noble.on('stateChange', function(state) {
-  if (state === 'poweredOn') {
-    noble.startScanning()
-  } else {
-    noble.stopScanning();
-  }
-});
-
-noble.on('discover', function(peripheral) {
-  console.log("\n Found a Node - Address:", peripheral.address, "\t ID:", peripheral.id, "\n");
-
-});
-
-noble.on('scanStart', function() {
-  console.log('on -> scanStart');
-  /*
-  setTimeout(function() {
-    noble.stopScanning();
-  }, 10 * 1000);
-  */
-})
-
-noble.on('scanStop', function() {
-  console.log('on -> scanStop');
-});
-
-////////////////////////////////////////////////////////////////////////////////
+function cloudReconnect () {
+  client.connect({port: port, host: host}, () => {
+    console.log("Cloud Reconnected");
+  });
+  cloudConnect = true;
+}
 
 
+/*
 var HCI_COMMAND_PKT = 0x01;
 var HCI_ACLDATA_PKT = 0x02;
 var HCI_EVENT_PKT = 0x04;
@@ -129,22 +160,22 @@ var LE_SET_SCAN_ENABLE_CMD = OCF_LE_SET_SCAN_ENABLE | OGF_LE_CTL << 10;
 var HCI_SUCCESS = 0;
 
 function setFilter() {
-  var filter = new Buffer(255);
+var filter = new Buffer(255);
 
-  var typeMask = (1 << HCI_EVENT_PKT);
-  var eventMask1 = (1 << EVT_CMD_COMPLETE) | (1 << EVT_CMD_STATUS);
-  var eventMask2 = (1 << (EVT_LE_META_EVENT - 32));
-  var opcode = 0;
+var typeMask = (1 << HCI_EVENT_PKT);
+var eventMask1 = (1 << EVT_CMD_COMPLETE) | (1 << EVT_CMD_STATUS);
+var eventMask2 = (1 << (EVT_LE_META_EVENT - 32));
+var opcode = 0;
 
-  filter.writeUInt32LE(typeMask, 0);
-  filter.writeUInt32LE(eventMask1, 4);
-  filter.writeUInt32LE(eventMask2, 8);
-  filter.writeUInt16LE(opcode, 12);
+filter.writeUInt32LE(typeMask, 0);
+filter.writeUInt32LE(eventMask1, 4);
+filter.writeUInt32LE(eventMask2, 8);
+filter.writeUInt16LE(opcode, 12);
 
 
-  bluetoothHciSocket.setFilter(filter);
+bluetoothHciSocket.setFilter(filter);
 }
-
+*/
 bluetoothHciSocket.bindRaw();
-setFilter();
+//setFilter();
 bluetoothHciSocket.start();
